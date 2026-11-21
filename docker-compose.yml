@@ -1,0 +1,41 @@
+version: "3"
+
+services:
+  mysqldb:
+    image: mysql:8.0.18
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_RANDOM_ROOT_PASSWORD: "yes"
+      MYSQL_DATABASE: app
+      MYSQL_USER: app
+      MYSQL_PASSWORD: pass
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  postgresdb:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: app
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  gate-simulator:
+    image: node:22-alpine
+    working_dir: /app
+    ports:
+      - "9999:9999"
+    volumes:
+      - ./gate-simulator/app.js:/app/app.js:ro
+      - ./gate-simulator/data.json:/app/data.json:ro
+      - ./gate-simulator/package.json:/app/package.json:ro
+      - ./gate-simulator/package-lock.json:/app/package-lock.json:ro
+    command: [ "sh", "-c", "npm ci && exec node app.js" ]
+
+volumes:
+  mysql_data:
+  postgres_data:
