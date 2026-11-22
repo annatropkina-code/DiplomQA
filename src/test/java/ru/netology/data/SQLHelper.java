@@ -10,6 +10,9 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.List;
 
+import org.apache.commons.dbutils.handlers.ArrayListHandler;
+import java.util.ArrayList;
+
 public class SQLHelper {
 
     private static final QueryRunner runner = new QueryRunner();
@@ -61,6 +64,44 @@ public class SQLHelper {
 
         try (var conn = getConn()) {
             return runner.query(conn, sql, new ScalarHandler<>(), creditRequestId);
+        }
+    }
+
+    @SneakyThrows
+    public long getCreditOrderCount(String creditRequestId) {
+        String sql = "SELECT COUNT(*) FROM order_entity o "
+                + "JOIN credit_request_entity c ON o.credit_id = c.bank_id "
+                + "WHERE c.id = ?";
+
+        try (var conn = getConn()) {
+            return runner.query(
+                    conn,
+                    sql,
+                    new ScalarHandler<Long>(),
+                    creditRequestId
+            );
+        }
+    }
+
+
+    @SneakyThrows
+    public List<Object[]> getStoredRows() {
+        try (var conn = getConn()) {
+            List<Object[]> rows = new ArrayList<>();
+
+            rows.addAll(runner.query(conn,
+                    "SELECT * FROM payment_entity",
+                    new ArrayListHandler()));
+
+            rows.addAll(runner.query(conn,
+                    "SELECT * FROM credit_request_entity",
+                    new ArrayListHandler()));
+
+            rows.addAll(runner.query(conn,
+                    "SELECT * FROM order_entity",
+                    new ArrayListHandler()));
+
+            return rows;
         }
     }
 

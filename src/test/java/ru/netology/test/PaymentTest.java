@@ -19,18 +19,22 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+
 class PaymentTest {
 
     @Test
     void shouldApproveCardPayment() throws IOException {
         SQLHelper sqlHelper = createSqlHelper();
         var paymentIdsBefore = sqlHelper.getPaymentIds();
+        var card = DataHelper.getApprovedCard();
 
         open("http://localhost:8080");
 
         PaymentPage paymentPage = new PaymentPage();
         paymentPage.openCardPayment();
-        paymentPage.fillForm(DataHelper.getApprovedCard());
+        paymentPage.fillForm(card);
         paymentPage.submit();
         paymentPage.shouldShowSuccess();
 
@@ -39,8 +43,37 @@ class PaymentTest {
 
         assertEquals(1, newPaymentIds.size(),
                 "После оплаты должна появиться одна новая запись");
-        assertEquals("APPROVED", sqlHelper.getPaymentStatus(newPaymentIds.get(0)),
+        assertEquals("APPROVED",
+                sqlHelper.getPaymentStatus(newPaymentIds.get(0)),
                 "Статус новой оплаты");
+
+        String cardNumber = card.getNumber().replace(" ", "");
+
+        for (Object[] row : sqlHelper.getStoredRows()) {
+            for (Object value : row) {
+                if (value != null) {
+                    String storedValue = value.toString();
+
+                    assertFalse(
+                            storedValue.replace(" ", "").contains(cardNumber),
+                            "В БД не должен сохраняться номер карты");
+
+                    assertNotEquals(card.getCvc(), storedValue,
+                            "В БД не должен сохраняться CVC");
+
+                    assertNotEquals(card.getMonth(), storedValue,
+                            "В БД не должен сохраняться месяц действия карты");
+
+                    assertNotEquals(card.getYear(), storedValue,
+                            "В БД не должен сохраняться год действия карты");
+
+                    assertNotEquals(
+                            card.getMonth() + "/" + card.getYear(),
+                            storedValue,
+                            "В БД не должен сохраняться срок действия карты");
+                }
+            }
+        }
     }
 
     private SQLHelper createSqlHelper() throws IOException {
@@ -197,6 +230,10 @@ class PaymentTest {
         assertEquals("APPROVED",
                 sqlHelper.getCreditRequestStatus(newCreditIds.get(0)),
                 "Статус новой кредитной заявки");
+
+        assertEquals(1L,
+                sqlHelper.getCreditOrderCount(newCreditIds.get(0)),
+                "Заказ должен быть связан с кредитной заявкой через credit_id");
     }
 
     @Test
